@@ -75,11 +75,49 @@ class Sudoku {
             const changedOneLeftInRow = this.checkOneLeftInRow(x, y);
             const changedOneLeftInColumn = this.checkOneLeftInColumn(x, y);
             const changedOneLeftInBlock = this.checkOneLeftInBlock(x, y);
-            changed = changedInRow || changedInColumn || changedInBlock || changedOneLeftInRow || changedOneLeftInColumn || changedOneLeftInBlock;
+            changed = changed || changedInRow || changedInColumn || changedInBlock || changedOneLeftInRow || changedOneLeftInColumn || changedOneLeftInBlock;
           }
         }
       }
     }
+  }
+
+  isSolved() {
+    const filled = this.sudoku.every(row => row.every(cell => cell.isSolved()));
+    const rows = this.sudoku.every(row => row.reduce((acc, cell) => acc + cell.getValue(), 0) === 45);
+    const columns = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(val => {
+      let sum = 0;
+      for (let i = 0; i < this.sudoku.length; i++) {
+        sum += this.sudoku[i][val].getValue();
+      }
+      return sum;
+    }).every(val => val === 45);
+    const blocks = this.blocks.every(block => block.reduce((acc, cell) => acc + cell.getValue(), 0) === 45)
+    return filled && rows && columns && blocks;
+  }
+
+  predict() {
+    let cell = null;
+    const prediction = [];
+    cicle:
+    for (let x = 0; x < this.sudoku.length; x++) {
+      for (let y = 0; y < this.sudoku[x].length; y++) {
+        const currentCell = this.sudoku[x][y];
+        if (!currentCell.isSolved()) {
+          cell = currentCell;
+          break cicle;
+        }
+      }
+    }
+    if (cell !== null) {
+      const possible = cell.posibleValues;
+      for (let i = 0; i < possible.length; i++) {
+        const matrix = this.getMatrix();
+        matrix[cell.getX()][cell.getY()] = possible[i];
+        prediction.push(matrix);
+      }
+    }
+    return prediction;
   }
 
   checkInRow(x, y) {
@@ -210,7 +248,20 @@ class Sudoku {
 }
 
 module.exports = function solveSudoku(matrix) {
-  const sudoku = new Sudoku(matrix);
-  sudoku.solve();
-  return sudoku.getMatrix();
+  const possible = [matrix];
+  let i = 0;
+  while(possible.length > 0) {
+    const newMatrix = possible.pop();
+    const sudoku = new Sudoku(newMatrix);
+    sudoku.solve();
+    if (sudoku.isSolved()) {
+      return sudoku.getMatrix();
+    } else {
+      const prediction = sudoku.predict();
+      for (let i = 0; i < prediction.length; i++) {
+        possible.push(prediction[i]);
+      }
+    }
+    i++;
+  }
 }
